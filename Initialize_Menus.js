@@ -11,7 +11,7 @@ const player = GetPlayer();
 const title = player.GetVar("Module_Title");
 const mod_num = player.GetVar("Module");
 const module = player.GetVar("Course_Code") + "_" + player.GetVar("Module") + "_notes";
-const notes_object = JSON.parse(localStorage.getItem(module));
+let notes_object = JSON.parse(localStorage.getItem(module));
 if (notes_object == 'undefined' || notes_object === null) {
   notes_object = {
     "title" : title,

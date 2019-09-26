@@ -11,7 +11,7 @@ const player = GetPlayer();
 const title = player.GetVar("Module_Title");
 const mod_num = player.GetVar("Module");
 const module = player.GetVar("Course_Code") + "_" + player.GetVar("Module") + "_notes";
-const notes_object = JSON.parse(localStorage.getItem(module));
+let notes_object = JSON.parse(localStorage.getItem(module));
 if (notes_object == 'undefined' || notes_object === null) {
   notes_object = {
     "title" : title,
@@ -34,20 +34,21 @@ if (notes_object["title"] != title) {
 function find_slide_in_menu() {
   let slide = $j('.slide').eq(document.getElementsByClassName('slide').length - 1);
   let slide_react_id = slide.attr('data-reactid');
+  let retrieveResult;
   // Determine Storyline 2 or 3
   if (slide_react_id.includes("$_player=")) {
     // Storyline 2
     let pattern = /player.*\./g;
-    let result = slide_react_id.match(pattern);
-    result = result[0].replace(/\./g,"");
-    result = result.replace(/\=./g,".");
+    retrieveResult = slide_react_id.match(pattern);
+    retrieveResult = retrieveResult[0].replace(/\./g,"");
+    retrieveResult = retrieveResult.replace(/\=./g,".");
   } else {
     // Storyline 3
     let pattern = /\:\$.*\./g;
-    let result = slide_react_id.match(pattern);
-    result = result[0].replace(/(\:|\$|\.)/g,"");
+    retrieveResult = slide_react_id.match(pattern);
+    retrieveResult = retrieveResult[0].replace(/(\:|\$|\.)/g,"");
   }
-  slide = $j('.cs-listitem[href$="'+result+'"]');
+  slide = $j('.cs-listitem[href$="' + retrieveResult + '"]');
   return slide;
 }
 

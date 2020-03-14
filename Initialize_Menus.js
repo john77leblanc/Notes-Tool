@@ -21,8 +21,7 @@ if (notes_object == 'undefined' || notes_object === null) {
 }
 
 // Check if initialized
-let init = sessionStorage.getItem("initialized");
-init = init == null ? false : true;
+let init = sessionStorage.getItem("initialized") == null ? false : true;
 sessionStorage.setItem("initialized",true);
 
 ///////////////
@@ -31,8 +30,21 @@ sessionStorage.setItem("initialized",true);
 
 // Get current slide
 function find_slide_in_menu(slide_id) {
-  let slide = $j('.cs-listitem[data-reactid="'+slide_id+'"]').find("> span:not([class])");
-  return slide;
+  let slides = convertToArray(document.querySelectorAll('.cs-listitem[data-reactid="'+slide_id+'"'))
+    .map(e => {
+      convertToArray(e.querySelectorAll('span'))
+        .filter(e => {!e.hasAttribute('class')});
+    });
+  return slides[0];
+}
+
+// Convert HTMLCollection or NodeObject into an array
+function convertToArray(obj) {
+  let a = [];
+  for (let i = 0; i < obj.length; i++) {
+    a.push(obj[i]);
+  }
+  return a;
 }
 
 /////////////////////////////////////

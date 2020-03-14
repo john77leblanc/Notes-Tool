@@ -48,7 +48,8 @@ function find_slide_in_menu() {
     retrieveResult = slide_react_id.match(pattern);
     retrieveResult = retrieveResult[0].replace(/(\:|\$|\.)/g,"");
   }
-  slide = $j('.cs-listitem[href$="' + retrieveResult + '"]');
+  //slide = $j('.cs-listitem[href$="' + retrieveResult + '"]');
+  slide = document.querySelector('.cs-listitem[href$="'+retrieveResult+'"]');
   return slide;
 }
 

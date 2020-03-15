@@ -17,6 +17,7 @@ const sectionTemplate = {
 
 const slideTemplate = {
   id: '',
+  ref: '',
   parent_titles: [],
   title: '',
   number: '',
@@ -51,14 +52,15 @@ const notesObject = () => {
   }
 
   // Return computed string variables
-  this.computable = ({
+  this.computed = ({
     menuDepth: s => s['aria-labelledby'].replace('outline-','')[0],
-    slideReference: () => this.modleData.player.GetVar('slideReference'), // Returns eg. 1.2
+    slideReference: () => parseInt(this.modleData.player.GetVar('slideReference').replace(/.*\./g, ""))-1,
     slideNote: () => this.moduleData.player.GetVar('note'),
     dataReference: s => s['data-ref'],
+    sectionReference: s => s['id'].replace('outline-1-',''),
     getTitle: s => s['data-slide-title'],
-    slideNumber: () => {
-      let slide = this.privateMethods.findSlideInMenu().parentNode;
+    getNumber: s => {
+      let slide = s.parentNode;
       let nodes = Array.prototype.slice.call(slide.parentNode);
       return `${nodes.indexOf(slide)+1} of ${nodes.length}`;
     }
@@ -82,8 +84,10 @@ const notesObject = () => {
       let slide = this.privateMethods.findSlideInMenu().parentNode.parentNode; // Gets <ul>
       return this.privateMethods.recursiveSectionGet(slide);
     },
+    findSectionById: id => this.notesObj.sections.find(e => e.id == id),
+    findSlideByIds: (sectionId, slideId) => this.notesObj.sections[sectionId].slides.find(e => e.id == id),
     recursiveSectionGet: s => {
-      if (this.computable.menuDepth(s) == '1') {
+      if (this.computed.menuDepth(s) == '1') {
         return s;
       } else {
         this.privateMethods.recursiveParentGet(s.parentNode.parentNode);
@@ -95,11 +99,11 @@ const notesObject = () => {
       return this.privateMethods.recursiveParentGet(parents,slide).reverse();
     },
     recursiveParentGet: (p,s) => {
-      if (this.computable.menuDepth(s) == '1') {
+      if (this.computed.menuDepth(s) == '1') {
         return p;
       } else {
         let find = document.querySelector(`#${s['aria-labelledby']}`);
-        p.push(this.computable.getTitle(find));
+        p.push(this.computed.getTitle(find));
         this.privateMethods.recursiveParentGet(p,s.parentNode.parentNode);
       }
     },
@@ -114,24 +118,46 @@ const notesObject = () => {
       // Sort Slides
       this.notesObj.sections.forEach(a => a.slides.sort(this.privateMethods.mySort));
     },
-    appendNoteInMenu: (section,slide) => {},
-    createNote: () => {
-      let slideData = {
-        id: this.computable.slideReference(),
-        ref: this.computable.dataReference(this.privateMethods.findSlideInMenu()),
-        parent_titles: this.privateMethods.getParentTitles(),
-        title: this.computable.getTitle(this.privateMethods.findSlideInMenu()),
-        number: this.computable.slideNumber(),
-        note: this.computable.slideNote()
+    appendNoteInMenu: (section,slide) => {}, // !! Need to finish ///////////////////////////////////////////
+    createSection: (note = false) => {
+      let s = this.privateMethods.findSectionInMenu();
+      let section = {
+        id: this.computed.sectionReference(s),
+        title: this.computed.getTitle(s),
+        number: this.computed.getNumber(s),
+        slides: []
       };
-      this.notesObj.sections[sectionNumber].push(slideData); // !! Need to define sectionNumber !!
-      //
-      //
-      //
-      // Create Section if it doesn't exist
-      //
-      //
-      //
+      if (note) section.slides.push(note);
+      return section;
+    },
+    createNote: () => {
+      let s = this.privateMethods.findSlideInMenu();
+      let slideData = {
+        id: this.computed.slideReference(),
+        ref: this.computed.dataReference(s),
+        parent_titles: this.privateMethods.getParentTitles(),
+        title: this.computed.getTitle(s),
+        number: this.computed.getNumber(s),
+        note: this.computed.slideNote()
+      };
+      let sectionId = this.computed.sectionReference(this.privateMethods.findSectionInMenu());
+      // If section exists
+      if (this.notesObj.sections.length && this.privateMethods.findSectionById(sectionId)) {
+        this.notesObj.sections[sectionId].push(slideData);
+        // If slide exists
+        if (this.notesObj.sections[sectionId].slides.length 
+            && this.privateMethods.findSlideByIds(sectionId,slideData.id)) {
+              this.notesObj.sections[sectionId].slides[slideData.id].note = slideData.note;
+        }
+        // If slide doesn't exist
+        else {
+          this.notesObj.sections[sectionId].slides.push(slideData);
+        }
+      }
+      // If section doesn't exist
+      else {
+        this.notesObj.sections.push(this.privateMethods.createSection(slideData));
+      }
     },
     saveNotes: () => localStorage.setItem(
       this.moduleData.mod,
@@ -139,7 +165,7 @@ const notesObject = () => {
     )
   });
 
-  // Methods to be called publically
+  // Methods to be called publicly
   return this.publicMethods = ({
     // Initialize Notes Object and Player Menu
     initNotesObject: () => {
@@ -155,14 +181,7 @@ const notesObject = () => {
       }
     },
     editNote: () => {
-      let slide = this.privateMethods.findSlideInMenu();
-      let data = {
-
-      }
-      // if note exists
       this.privateMethods.createNote();
-      // else
-      this.privateMethods.updateNote();
       this.privateMethods.sortAll();
       this.privateMethods.saveNotes();
     },

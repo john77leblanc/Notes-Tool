@@ -74,9 +74,12 @@ const notesFunctions = () => {
             module: this.moduleData.modNum(),
             sections: []
           });
+      this.state.notesObj.sections.forEach(e => {
+        if (e.slides.length) e.slides.forEach(s => this.privateMethods.appendNoteInMenu(s));
+      });
     },
     findSlideInMenu: () => document.querySelector('.cs-selected'), // Find the highlighted slide in the menu
-    findSlideInMenuById: id => document.querySelector(`[data-ref="${id}"]`),
+    findSlideInMenuByRef: ref => document.querySelector(`[data-ref="${ref}"]`),
     findSectionInMenu: () => {
       let slide = this.privateMethods.getParentUL(this.privateMethods.findSlideInMenu())
       return document.querySelector(`#${this.privateMethods.recursiveSectionGet(slide).getAttribute('aria-labelledby')}`);
@@ -123,7 +126,7 @@ const notesFunctions = () => {
     },
     appendNoteInMenu: s => {
       let note = ' [Note]';
-      let menu = this.privateMethods.findSlideInMenuById(s.id);
+      let menu = this.privateMethods.findSlideInMenuByRef(s.ref);
       if (s.note.length) {
         menu.innerHTML += menu.innerHTML.includes(note) ? '' : note;
       } else {
@@ -175,6 +178,7 @@ const notesFunctions = () => {
           this.state.notesObj.sections.push(section);
         }
       }
+      this.privateMethods.appendNoteInMenu(slideData);
     },
     removeNote: (sectionId, slideId) => {
       let section = this.privateMethods.findSectionById(sectionId);
@@ -203,7 +207,6 @@ const notesFunctions = () => {
 
   // Methods to be called publicly
   return this.publicMethods = ({
-    // Initialize Notes Object and Player Menu
     initNotesObject: () => {
       if (!this.state.initialized) {
         // Attempt to load notes object from local storage
@@ -220,8 +223,30 @@ const notesFunctions = () => {
       this.privateMethods.sortAll();
       this.privateMethods.saveNotes();
     },
-    getModData: () => this.moduleData // Testing function
+    compileNotes: () => {
+      let compile = "";
+      this.state.notesObj.sections.forEach(e => {
+        compile += "---------------------------------------------------------\n";
+        compile += "|  " + e.title + "\n";
+        compile += "---------------------------------------------------------\n\n"
+        e.slides.forEach(s => {
+          if (s.parent_titles.length) {
+            compile += "Sub-slide " + s.title + "\n";
+            compile += "(From: ";
+            s.parent_titles.forEach(t => {
+              compile += t;
+              if (s.parent_titles.indexOf(t) != s.parent_titles.length - 1) compile += " > ";
+            });
+            compile += ")\n"
+          } else {
+            compile += "Slide " + s.title + "\n";
+          }
+          compile += s.note + "\n\n";
+        });
+      });
+      this.moduleData.set('Compile', compile)
+    }
   })
 }
 
-window.addEventListener('load',() => window.notes = notesFunctions());
+window.addEventListener('load', () => window.notes = notesFunctions());

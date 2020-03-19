@@ -28,39 +28,32 @@ const slideTemplate = {
 //  Objects
 ////////////////////////
 
-// Module Data Object
-const moduleData = () => ({
-  player: GetPlayer(),
-  get: v => {this.player.GetVar(v)},
-  title: function() {this.get("Module_Title")},
-  modNum: function() {this.get("Module")},
-  courseCode: function() {this.get("Course_Code")},
-  mod: function() {`${this.courseCode()}_${this.modNum()}_notes`}
-});
-
 // Notes Object
-function notesFunctions() {
-  this.state = {
-    notesObj: {
-      __proto__: noteObjectTemplate
-    },
-    initialized: false
-  };
-
+const notesFunctions = () => {
   this.moduleData = ({
     player: GetPlayer(),
     get: v => this.moduleData.player.GetVar(v),
+    set: (set,data) => this.moduleData.player.SetVar(set,data),
     title: () => this.moduleData.get("Module_Title"),
     modNum: () => this.moduleData.get("Module"),
     courseCode: () => this.moduleData.get("Course_Code"),
     mod: () => `${this.moduleData.courseCode()}_${this.moduleData.modNum()}_notes`
   });
 
+  this.state = {
+    notesObj: {
+      title: this.moduleData.title(),
+      module: this.moduleData.modNum(),
+      sections: []
+    },
+    initialized: false
+  };
+
   // Return computed string variables
   this.computed = ({
     menuDepth: s => s.getAttribute('aria-labelledby').replace('outline-','')[0],
     slideReference: () => parseInt(this.moduleData.get('slideReference').replace(/.*\./g, ""))-1,
-    slideNote: () => this.moduleData.get("Notes"),
+    slideNote: () => this.moduleData.get("Notes").trim(),
     dataReference: s => s.getAttribute('data-ref'),
     sectionReference: s => s.getAttribute('id').replace('outline-1-',''),
     getTitle: s => s.getAttribute('data-slide-title'),
@@ -86,15 +79,15 @@ function notesFunctions() {
     findSlideInMenuById: id => document.querySelector(`[data-ref="${id}"]`),
     findSectionInMenu: () => {
       let slide = this.privateMethods.getParentUL(this.privateMethods.findSlideInMenu())
-      return this.privateMethods.recursiveSectionGet(slide);
+      return document.querySelector(`#${this.privateMethods.recursiveSectionGet(slide).getAttribute('aria-labelledby')}`);
     },
     findSectionById: id => this.state.notesObj.sections.find(e => e.id == id),
-    findSlideByIds: (sectionId, slideId) => this.state.notesObj.sections[sectionId].slides.find(e => e.id == id),
+    findSlideByIds: (sectionId, slideId) => this.privateMethods.findSectionById(sectionId).slides.find(e => e.id == slideId),
     recursiveSectionGet: s => {
       if (this.computed.menuDepth(s) == '1') {
         return s;
       } else {
-        this.privateMethods.recursiveParentGet(this.privateMethods.getParentUL(s));
+        this.privateMethods.recursiveSectionGet(this.privateMethods.getParentUL(s));
       }
     },
     getParentUL: s => {
@@ -125,7 +118,7 @@ function notesFunctions() {
       this.state.notesObj.sections.sort(this.privateMethods.mySort);
       // Sort Slides
       this.state.notesObj.sections.forEach(a => {
-        if (typeof(a.slides) != 'undefined') a.slides.sort(this.privateMethods.mySort)
+        if (typeof a.slides != 'undefined') a.slides.sort(this.privateMethods.mySort)
       });
     },
     appendNoteInMenu: s => {
@@ -140,7 +133,7 @@ function notesFunctions() {
     createSection: (note = false) => {
       let s = this.privateMethods.findSectionInMenu();
       let section = {
-        id: this.computed.sectionReference(s), // Not working as intended
+        id: this.computed.sectionReference(s),
         title: this.computed.getTitle(s),
         number: this.computed.getNumber(s),
         slides: []
@@ -159,27 +152,48 @@ function notesFunctions() {
         note: this.computed.slideNote()
       };
       let sectionId = this.computed.sectionReference(this.privateMethods.findSectionInMenu());
-      // If section exists
-      if (this.state.notesObj.sections.length && this.privateMethods.findSectionById(sectionId)) {
-        this.state.notesObj.sections[sectionId].push(slideData);
-        // If slide exists
-        if (this.state.notesObj.sections[sectionId].slides.length 
-            && this.privateMethods.findSlideByIds(sectionId,slideData.id)) {
-              this.state.notesObj.sections[sectionId].slides[slideData.id].note = slideData.note;
+      
+      // Remove note if there is none
+      if (!slideData.note.length) this.privateMethods.removeNote(sectionId, slideData.id);
+      // Add note
+      else {
+        // If section exists
+        if (this.state.notesObj.sections.length && this.privateMethods.findSectionById(sectionId)) {
+          // If slide exists
+          if (this.privateMethods.findSectionById(sectionId).slides.length 
+              && this.privateMethods.findSlideByIds(sectionId,slideData.id)) {
+                this.privateMethods.findSlideByIds(sectionId, slideData.id).note = slideData.note;
+          }
+          // If slide doesn't exist
+          else {
+            this.state.notesObj.sections.find(e => e.id == sectionId).slides.push(slideData);
+          }
         }
-        // If slide doesn't exist
+        // If section doesn't exist
         else {
-          this.state.notesObj.sections[sectionId].slides.push(slideData);
+          let section = this.privateMethods.createSection(slideData)
+          this.state.notesObj.sections.push(section);
         }
       }
-      // If section doesn't exist
-      else {
-        this.state.notesObj.sections.push(this.privateMethods.createSection(slideData)); // ERROR SECTION
+    },
+    removeNote: (sectionId, slideId) => {
+      let section = this.privateMethods.findSectionById(sectionId);
+      let slide = this.privateMethods.findSlideByIds(sectionId, slideId);
+      let index = section.slides.indexOf(slide);
+      this.privateMethods.findSectionById(sectionId).slides.splice(index,1);
+      if (!this.privateMethods.findSectionById(sectionId).slides.length) {
+        index = this.state.notesObj.sections.indexOf(section);
+        this.state.notesObj.sections.splice(index,1);
       }
     },
     loadNote: () => {
       let sectionId = this.computed.sectionReference(this.privateMethods.findSectionInMenu());
-      let ref = this.computed.slideReference();
+      let slideId = this.computed.slideReference();
+      if (typeof this.privateMethods.findSectionById(sectionId) != 'undefined') {
+        let data = this.privateMethods.findSlideByIds(sectionId, slideId);
+        if (typeof data != 'undefined') this.moduleData.set('Notes', data.note);
+        else this.moduleData.set('Notes','');
+      } else this.moduleData.set('Notes','');
     },
     saveNotes: () => localStorage.setItem(
       this.moduleData.mod(),
@@ -199,13 +213,15 @@ function notesFunctions() {
       }
     },
     loadNote: () => {
-
+      this.privateMethods.loadNote();
     },
     editNote: () => {
       this.privateMethods.createNote();
-      // this.privateMethods.sortAll();
-      // this.privateMethods.saveNotes();
+      this.privateMethods.sortAll();
+      this.privateMethods.saveNotes();
     },
     getModData: () => this.moduleData // Testing function
   })
 }
+
+window.addEventListener('load',() => window.notes = notesFunctions());

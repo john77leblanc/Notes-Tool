@@ -51,6 +51,7 @@ const notesFunctions = () => {
 
   // Return computed string variables
   this.computed = ({
+    currentStorylineMod: () => this.moduleData.get('Module_Set'),
     menuDepth: s => s.getAttribute('aria-labelledby').replace('outline-','')[0],
     slideReference: () => parseInt(this.moduleData.get('slideReference').replace(/.*\./g, ""))-1,
     slideNote: () => this.moduleData.get("Notes").trim(),
@@ -202,8 +203,63 @@ const notesFunctions = () => {
     saveNotes: () => localStorage.setItem(
       this.moduleData.mod(),
       JSON.stringify(this.state.notesObj)
-    )
+    ),
+    compileData: data => {
+      let compile = "";
+      data.sections.forEach(e => {
+        compile += "---------------------------------------------------------\n";
+        compile += "|  " + e.title + "\n";
+        compile += "---------------------------------------------------------\n\n"
+        e.slides.forEach(s => {
+          if (s.parent_titles.length) {
+            compile += "Sub-slide " + s.title + "\n";
+            compile += "(From: ";
+            s.parent_titles.forEach(t => {
+              compile += t;
+              if (s.parent_titles.indexOf(t) != s.parent_titles.length - 1) compile += " > ";
+            });
+            compile += ")\n"
+          } else {
+            compile += `${s.number} | ${s.title}\n`;
+          }
+          compile += s.note + "\n\n";
+        });
+      });
+      this.moduleData.set('Compile', compile)
+    }
   });
+
+  this.exportTemplates = ({
+    section: s => {
+      return `
+      <div>
+        <h3 class="section">${s.title}</h3>
+        ${s.slides.reduce((sum,e) => sum + (e.parent_titles.length ? this.exportTemplates.subSlide(e) : this.exportTemplates.slide(e)),"")}
+      </div>`;
+    },
+    slide: s => {
+      return `
+      <div class="note">
+        <h4 class="slide-title">${s.number} | ${s.title}</h4>
+        ${this.exportTemplates.note(s.note)}
+      </div>`;
+    },
+    subSlide: s => {
+      return `
+      <div class="note sub-slide">
+        <h4 class="sub-slide-title">${s.number} | ${"&#8627; ".repeat(s.parent_titles.length)} ${s.title}</h4>
+        ${this.exportTemplates.parentTitles(s.parent_titles)}
+        ${this.exportTemplates.note(s.note)}
+      </div>`;
+    },
+    parentTitles: titles => {
+      return `
+      <h5 class="sub-slide-appender">
+        (From: ${titles.reduce((sum, t) => sum + t.indexOf(e) == t.length - 1 ? e : e + " > ","")})
+      </h5>`;
+    },
+    note: n => `<p>${n}</p>`
+  })
 
   // Methods to be called publicly
   return this.publicMethods = ({
@@ -224,27 +280,109 @@ const notesFunctions = () => {
       this.privateMethods.saveNotes();
     },
     compileNotes: () => {
-      let compile = "";
-      this.state.notesObj.sections.forEach(e => {
-        compile += "---------------------------------------------------------\n";
-        compile += "|  " + e.title + "\n";
-        compile += "---------------------------------------------------------\n\n"
-        e.slides.forEach(s => {
-          if (s.parent_titles.length) {
-            compile += "Sub-slide " + s.title + "\n";
-            compile += "(From: ";
-            s.parent_titles.forEach(t => {
-              compile += t;
-              if (s.parent_titles.indexOf(t) != s.parent_titles.length - 1) compile += " > ";
-            });
-            compile += ")\n"
-          } else {
-            compile += "Slide " + s.title + "\n";
-          }
-          compile += s.note + "\n\n";
-        });
+      let course = this.moduleData.courseCode();
+      let num = this.computed.currentStorylineMod();
+      let data = JSON.parse(localStorage.getItem(`${course}_${num}_notes`));
+      this.privateMethods.compileData(data);
+    },
+    checkForOtherModules: () => {
+      Object.entries(localStorage).filter(e => {
+        e.includes(this.moduleData.courseCode());
+      }).forEach(e => {
+        let data = JSON.parse(localStorage.getItem(e));
+        this.moduleData.set(`Module_Review_${data.module}`, data.title);
       });
-      this.moduleData.set('Compile', compile)
+    },
+    exportNotes: () => {
+      let course = this.moduleData.courseCode();
+      let num = this.moduleData.get('Module_Set');
+      let data = JSON.parse(localStorage.getItem(`${course}_${num}_notes`));
+
+      let compile = data.sections.reduce((sum, e) => sum + this.exportTemplates.section(e),"");
+
+      let html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${course}_Module_${num}_Notes</title>
+          <meta charset='UTF-8'>
+          <style>
+            .header-item {
+              order: 1;
+              width: 30%;
+            }
+
+            .section {
+              font-size: 24px;
+              display: block;
+              padding: 10px;
+              margin: 0;
+              color: white;
+              background: #0f3e70;
+            }
+
+            .slide-title,
+            .sub-slide-title {
+              font-size: 18px;
+              font-weight: 600;
+              color: #666666;
+              margin-bottom: 15px;
+            }
+
+            .sub-slide-title {
+              margin-bottom: 5px;
+            }
+
+            .sub-slide-appender {
+              margin-top: 0;
+            }
+
+            .note {
+              display: block;
+              padding: 5px 15px;
+              margin: 0;
+              border-bottom: 1px solid #999999;
+            }
+
+            .note.sub-slide {
+              padding-left: 2em;
+              background-color: #eeeeee;
+            }
+
+            .note p {
+              white-space: pre-wrap;
+            }
+          </style>
+          <script>
+            function MyPrint() {
+              document.getElementById('print-note').style.display = 'none';
+              window.print();
+              setTimeout(function(){window.close();},100);
+            }
+          </script>
+        </head>
+        <body>
+          <div style='background: #333333; color: white; padding: 0 15px 15px; margin-bottom: 0;'>
+            <div style='display: flex; justify-content: space-between;'>
+              <div class='header-item' style='text-align: left;'><h2>Notes</h2></div>
+              <div class='header-item' style='text-align: center;'><h2>${course}, Module ${num}</h2></div>
+              <div class='header-item' style='text-align: right;'><h2>BHSc</h2></div>
+            </div>
+            <h1 style='text-align: center;'>${data.title}</h1>
+          </div>
+          <div id="print-note" style="padding: 15px; margin-bottom: 0px; background: #eeeeee; text-align: center;">
+            <p>Here is a compiled version of all your notes for this module. You cannot edit this page. It is recommended that you print or save this page to mitigate the risk of losing your notes. Remember, notes taken with this tool are linked specifically to the device you are currently on, and will not appear if you use a different device (laptop, computer, etc.).</p>
+            <div style="width: 200px; margin: auto;"><button onclick="MyPrint();" style="width: 100%;">Export</button></div>
+          </div>
+          <div>
+            ${compile}
+          </div>
+        </body>
+      </html>
+      `;
+
+      let myWindow = window.open("","_blank", "width=850");
+      myWindow.document.write(html);
     }
   })
 }

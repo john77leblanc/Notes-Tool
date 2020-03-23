@@ -286,10 +286,8 @@ const notesFunctions = () => {
       this.privateMethods.compileData(data);
     },
     checkForOtherModules: () => {
-      Object.entries(localStorage).filter(e => {
-        e.includes(this.moduleData.courseCode());
-      }).forEach(e => {
-        let data = JSON.parse(localStorage.getItem(e));
+      Object.entries(localStorage).filter(e => e[0].includes(this.moduleData.courseCode())).forEach(e => {
+        let data = JSON.parse(localStorage.getItem(e[0]));
         this.moduleData.set(`Module_Review_${data.module}`, data.title);
       });
     },

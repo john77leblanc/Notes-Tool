@@ -1,3 +1,5 @@
+// Notes Tool for 360 v4.0
+
 ////////////////////////
 //  Object Templates
 ////////////////////////
@@ -151,7 +153,7 @@ const notesFunctions = () => {
         return this.privateMethods.recursiveParentGet(p,this.privateMethods.getParentUL(s));
        }
     },
-    mySort: (a,b) => parseFloat(a.id) - parseFloat(b.id), // Need to fix sorting issue
+    mySort: (a,b) => parseFloat(a.id) - parseFloat(b.id),
     sortSectionById: id => {
       this.state.notesObj.sections.find(e => e.id == id)
           .slides.sort(this.privateMethods.mySort)
@@ -294,7 +296,7 @@ const notesFunctions = () => {
     parentTitles: titles => {
       return `
       <h5 class="sub-slide-appender">
-        (From: ${titles.reduce((sum, t) => sum + titles.indexOf(t) == titles.length - 1 ? t : t + " > ","")})
+        (From: ${titles.reduce((sum, t, i, a) => sum + (i == a.length - 1 ? t : t + " > "),"")})
       </h5>`;
     },
     note: n => `<p>${n}</p>`

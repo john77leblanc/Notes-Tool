@@ -30,6 +30,15 @@ const slideTemplate = {
 
 // Notes Object
 const notesFunctions = () => {
+  this.static = ({
+    menuDepth: "menu-depth",
+    menuDepthVal: "2",
+    noteId: "notes-id",
+    noteRef: "notes-reference",
+    noteRefId: "notes-reference-id",
+    sectionRef: "section-reference"
+  });
+
   this.moduleData = ({
     player: GetPlayer(),
     get: v => this.moduleData.player.GetVar(v),
@@ -52,11 +61,11 @@ const notesFunctions = () => {
   // Return computed string variables
   this.computed = ({
     currentStorylineMod: () => this.moduleData.get('Module_Set'),
-    menuDepth: s => s.getAttribute('aria-labelledby').replace('outline-','')[0],
-    slideReference: () => parseInt(this.moduleData.get('slideReference').replace(/.*\./g, ""))-1,
+    menuDepth: s => s.getAttribute(this.static.menuDepth),
+    slideReference: s => s.getAttribute(this.static.noteId),
     slideNote: () => this.moduleData.get("Notes").trim(),
     dataReference: s => s.getAttribute('data-ref'),
-    sectionReference: s => s.getAttribute('id').replace('outline-1-',''),
+    sectionReference: s => s.getAttribute(this.static.sectionRef),
     getTitle: s => s.getAttribute('data-slide-title'),
     getNumber: s => {
       let slide = s.parentNode;
@@ -66,6 +75,35 @@ const notesFunctions = () => {
   })
 
   this.privateMethods = ({
+    calcDepth: (e, depth = 1) => {
+      let item = e.parentNode;
+      return item.nodeName == 'NAV' 
+        ? depth 
+        : this.privateMethods.calcDepth(this.privateMethods.getParentUL(e), depth + 1);
+    },
+    setDepth: () => {
+      document.querySelectorAll('nav ul').forEach(e => {
+        e.setAttribute(this.static.menuDepth, this.privateMethods.calcDepth(e));
+      });
+    },
+    setSectionReferences: () => {
+      document.querySelectorAll(`[${this.static.menuDepth}="${this.static.menuDepthVal}"]`).forEach((e,i) => {
+        e.previousElementSibling.setAttribute(this.static.sectionRef, i);
+      });
+    },
+    setNoteReferences: () => {
+      document.querySelectorAll('nav ul li > div').forEach((e,i) => {
+        e.setAttribute(this.static.noteId, i);
+      });
+    },
+    setAriaLabels: () => {
+      document.querySelectorAll('nav [aria-labelledby]').forEach((e,i) => {
+        e.setAttribute(this.static.noteRef, i);
+        if (e.previousElementSibling != null) {
+          e.previousElementSibling.setAttribute(this.static.noteRefId, i);
+        }
+      });
+    },
     loadNotes: () => {
       let obj = JSON.parse(localStorage.getItem(this.moduleData.mod()));
       this.state.notesObj = obj != null 
@@ -82,17 +120,18 @@ const notesFunctions = () => {
     findSlideInMenu: () => document.querySelector('.cs-selected'), // Find the highlighted slide in the menu
     findSlideInMenuByRef: ref => document.querySelector(`[data-ref="${ref}"]`),
     findSectionInMenu: () => {
-      let slide = this.privateMethods.getParentUL(this.privateMethods.findSlideInMenu())
-      return document.querySelector(`#${this.privateMethods.recursiveSectionGet(slide).getAttribute('aria-labelledby')}`);
+      let slide = this.privateMethods.getParentUL(this.privateMethods.findSlideInMenu());
+      let me = document.querySelector(
+        `[${this.static.noteRefId}="${this.privateMethods.recursiveSectionGet(slide).getAttribute(this.static.noteRef)}"]`
+      );
+      return me;
     },
     findSectionById: id => this.state.notesObj.sections.find(e => e.id == id),
     findSlideByIds: (sectionId, slideId) => this.privateMethods.findSectionById(sectionId).slides.find(e => e.id == slideId),
     recursiveSectionGet: s => {
-      if (this.computed.menuDepth(s) == '1') {
-        return s;
-      } else {
-        this.privateMethods.recursiveSectionGet(this.privateMethods.getParentUL(s));
-      }
+      return this.computed.menuDepth(s) == this.static.menuDepthVal
+        ? s
+        : this.privateMethods.recursiveSectionGet(this.privateMethods.getParentUL(s));
     },
     getParentUL: s => {
       let slide = s.parentNode;
@@ -104,15 +143,15 @@ const notesFunctions = () => {
       return this.privateMethods.recursiveParentGet(parents,slide).reverse();
     },
     recursiveParentGet: (p,s) => {
-      if (this.computed.menuDepth(s) == '1') {
+      if (this.computed.menuDepth(s) == this.static.menuDepthVal) {
         return p;
       } else {
-        let find = document.querySelector(`#${s.getAttribute('aria-labelledby')}`);
+        let find = document.querySelector(`[${this.static.noteRefId}="${s.getAttribute(this.static.noteRef)}"]`);
         p.push(this.computed.getTitle(find));
-        this.privateMethods.recursiveParentGet(p,this.privateMethods.getParentUL(s));
-      }
+        return this.privateMethods.recursiveParentGet(p,this.privateMethods.getParentUL(s));
+       }
     },
-    mySort: (a,b) => parseFloat(a.id) - parseFloat(b.id),
+    mySort: (a,b) => parseFloat(a.id) - parseFloat(b.id), // Need to fix sorting issue
     sortSectionById: id => {
       this.state.notesObj.sections.find(e => e.id == id)
           .slides.sort(this.privateMethods.mySort)
@@ -148,7 +187,7 @@ const notesFunctions = () => {
     createNote: () => {
       let s = this.privateMethods.findSlideInMenu();
       let slideData = {
-        id: this.computed.slideReference(),
+        id: this.computed.slideReference(s),
         ref: this.computed.dataReference(s),
         parent_titles: this.privateMethods.getParentTitles(),
         title: this.computed.getTitle(s),
@@ -193,7 +232,7 @@ const notesFunctions = () => {
     },
     loadNote: () => {
       let sectionId = this.computed.sectionReference(this.privateMethods.findSectionInMenu());
-      let slideId = this.computed.slideReference();
+      let slideId = this.computed.slideReference(this.privateMethods.findSlideInMenu());
       if (typeof this.privateMethods.findSectionById(sectionId) != 'undefined') {
         let data = this.privateMethods.findSlideByIds(sectionId, slideId);
         if (typeof data != 'undefined') this.moduleData.set('Notes', data.note);
@@ -255,7 +294,7 @@ const notesFunctions = () => {
     parentTitles: titles => {
       return `
       <h5 class="sub-slide-appender">
-        (From: ${titles.reduce((sum, t) => sum + t.indexOf(e) == t.length - 1 ? e : e + " > ","")})
+        (From: ${titles.reduce((sum, t) => sum + titles.indexOf(t) == titles.length - 1 ? t : t + " > ","")})
       </h5>`;
     },
     note: n => `<p>${n}</p>`
@@ -266,6 +305,10 @@ const notesFunctions = () => {
     initNotesObject: () => {
       if (!this.state.initialized) {
         // Attempt to load notes object from local storage
+        this.privateMethods.setDepth();
+        this.privateMethods.setAriaLabels();
+        this.privateMethods.setSectionReferences();
+        this.privateMethods.setNoteReferences();
         this.privateMethods.loadNotes();
         this.state.initialized = true;
         this.privateMethods.sortAll();

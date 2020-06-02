@@ -430,4 +430,13 @@ const notesFunctions = () => {
   })
 }
 
-window.addEventListener('load', () => window.notes = notesFunctions());
+function getPlayerReady() {
+  if (typeof GetPlayer != "undefined") {
+    window.notes = notesFunctions();
+    window.notes.initNotesObject();
+    console.log("Notes Tool initiated.");
+    clearInterval(checkGetPlayer);
+  }
+}
+
+let checkGetPlayer = setInterval(getPlayerReady, 100);

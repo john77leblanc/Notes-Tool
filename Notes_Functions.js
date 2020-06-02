@@ -1,4 +1,4 @@
-// Notes Tool for 360 v4.0
+// Notes Tool for 360 v4.2
 
 ////////////////////////
 //  Object Templates
@@ -119,7 +119,7 @@ const notesFunctions = () => {
         if (e.slides.length) e.slides.forEach(s => this.privateMethods.appendNoteInMenu(s));
       });
     },
-    findSlideInMenu: () => document.querySelector('.cs-selected'), // Find the highlighted slide in the menu
+    findSlideInMenu: () => document.querySelector('.listitem.cs-selected'), // Find the highlighted slide in the menu
     findSlideInMenuByRef: ref => document.querySelector(`[data-ref="${ref}"]`),
     findSectionInMenu: () => {
       let slide = this.privateMethods.getParentUL(this.privateMethods.findSlideInMenu());
@@ -432,9 +432,11 @@ const notesFunctions = () => {
 
 function getPlayerReady() {
   if (typeof GetPlayer != "undefined") {
-    window.notes = notesFunctions();
-    window.notes.initNotesObject();
-    console.log("Notes Tool initiated.");
+    window.addEventListener("load", () => {
+      window.notes = notesFunctions();
+      window.notes.initNotesObject();
+      console.log("Notes Tool initiated.");
+    });
     clearInterval(checkGetPlayer);
   }
 }

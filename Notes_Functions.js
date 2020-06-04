@@ -1,4 +1,4 @@
-// Notes Tool for 360 v4.2
+// Notes Tool for 360 v4.5
 
 ////////////////////////
 //  Object Templates
@@ -32,6 +32,8 @@ const slideTemplate = {
 
 // Notes Object
 const notesFunctions = () => {
+  // Static data that does not change
+  // Set selectors here
   this.static = ({
     menuDepth: "menu-depth",
     menuDepthVal: "2",
@@ -302,7 +304,8 @@ const notesFunctions = () => {
     note: n => `<p>${n}</p>`
   })
 
-  // Methods to be called publicly
+  // Methods to be called publicly through Storyline
+  // Use "window.notes.<functionName>()" to call.
   return this.publicMethods = ({
     initNotesObject: () => {
       if (!this.state.initialized) {
@@ -409,7 +412,7 @@ const notesFunctions = () => {
             <div style='display: flex; justify-content: space-between;'>
               <div class='header-item' style='text-align: left;'><h2>Notes</h2></div>
               <div class='header-item' style='text-align: center;'><h2>${course}, Module ${num}</h2></div>
-              <div class='header-item' style='text-align: right;'><h2>BHSc</h2></div>
+              <div class='header-item' style='text-align: right;'><h2></h2></div>
             </div>
             <h1 style='text-align: center;'>${data.title}</h1>
           </div>
@@ -430,15 +433,20 @@ const notesFunctions = () => {
   })
 }
 
+////////////////////////////////////////////////
+//  Initiator
+////////////////////////////////////////////////
+//  Makes sure the Storyline "GetPlayer()"
+//  function is ready before initiation.
+////////////////////////////////////////////////
+
 function getPlayerReady() {
   if (typeof GetPlayer != "undefined") {
-    window.addEventListener("load", () => {
-      window.notes = notesFunctions();
-      window.notes.initNotesObject();
-      console.log("Notes Tool initiated.");
-    });
+    window.notes = notesFunctions();
+    window.notes.initNotesObject();
+    console.log("Notes Tool initiated.");
     clearInterval(checkGetPlayer);
   }
 }
 
-let checkGetPlayer = setInterval(getPlayerReady, 100);
+let checkGetPlayer = window.notes == undefined ? setInterval(getPlayerReady, 100) : null;

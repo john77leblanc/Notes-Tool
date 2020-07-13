@@ -40,7 +40,8 @@ const notesFunctions = () => {
     noteId: "notes-id",
     noteRef: "notes-reference",
     noteRefId: "notes-reference-id",
-    sectionRef: "section-reference"
+    sectionRef: "section-reference",
+    textArea: () => document.querySelector("[placeholder='Type your notes here']")
   });
 
   this.moduleData = ({
@@ -223,6 +224,8 @@ const notesFunctions = () => {
         }
       }
       this.privateMethods.appendNoteInMenu(slideData);
+      this.static.textArea().value = "";
+      this.moduleData.set("Notes","");
     },
     removeNote: (sectionId, slideId) => {
       let section = this.privateMethods.findSectionById(sectionId);

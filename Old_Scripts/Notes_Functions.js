@@ -1,4 +1,4 @@
-// Notes Tool for 360 v4.6
+// Notes Tool for 360 v5.0
 
 ////////////////////////
 //  Object Templates
